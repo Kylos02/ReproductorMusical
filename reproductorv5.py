@@ -27,10 +27,6 @@ INFO_Y_START = COVER_SIZE
 MARGEN = 10
 
 COLOR_FONDO = (0, 0, 0)
-COLOR_TITULO = (255, 255, 255)
-COLOR_ARTISTA = (170, 170, 170)
-COLOR_ALBUM = (120, 120, 120)
-COLOR_TIEMPO = (170, 170, 170)
 COLOR_FONDO_BARRA = (60, 60, 60)
 COLOR_PROGRESO = (255, 255, 255)
 
@@ -42,10 +38,11 @@ VOL_VISIBLE_SEG = 1.5
 VOL_FADEOUT_SEG = 0.5
 VOL_TOTAL_SEG = VOL_VISIBLE_SEG + VOL_FADEOUT_SEG
 
+# Touch
+TOUCH_DEBOUNCE = 0.8
+
 # Letras
 LRCLIB_URL = "https://lrclib.net/api/get"
-LINEA_ALTO = 26
-LETRAS_VISIBLES = 9
 
 # Fuentes
 try:
@@ -55,16 +52,8 @@ try:
     fuente_tiempo = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
     fuente_volumen = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 13)
     fuente_letra_info = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-
-    # Fuentes para letras: tamaños escalonados para auto-ajuste
-    FUENTES_LETRA_BOLD = [
-        ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", s)
-        for s in [14, 12, 10, 9, 8, 7]
-    ]
-    FUENTES_LETRA_NORMAL = [
-        ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", s)
-        for s in [12, 11, 10, 9, 8, 7]
-    ]
+    fuente_letra_activa = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
+    fuente_letra_inactiva = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
 except IOError:
     _def = ImageFont.load_default()
     fuente_titulo = _def
@@ -73,8 +62,8 @@ except IOError:
     fuente_tiempo = _def
     fuente_volumen = _def
     fuente_letra_info = _def
-    FUENTES_LETRA_BOLD = [_def]
-    FUENTES_LETRA_NORMAL = [_def]
+    fuente_letra_activa = _def
+    fuente_letra_inactiva = _def
 
 
 # ==========================================
@@ -104,35 +93,40 @@ def mezclar_color(c1, c2, t):
     )
 
 
-def generar_colores_letras(color_fondo):
+def generar_colores(color_fondo):
+    """Genera paleta adaptativa para toda la UI."""
     lum = luminancia(color_fondo)
     fr, fg, fb = color_fondo
 
     if lum > 0.45:
         return {
-            "actual":    (0, 0, 0),
-            "cerca_1":   (40, 40, 40),
-            "cerca_2":   (80, 80, 80),
-            "lejos":     mezclar_color((fr, fg, fb), (40, 40, 40), 0.5),
-            "muy_lejos": mezclar_color((fr, fg, fb), (60, 60, 60), 0.6),
-            "info":      mezclar_color((fr, fg, fb), (50, 50, 50), 0.5),
-            "separador": mezclar_color((fr, fg, fb), (0, 0, 0), 0.3),
-            "barra_bg":  mezclar_color((fr, fg, fb), (0, 0, 0), 0.25),
-            "barra_fg":  (0, 0, 0),
-            "tiempo":    (50, 50, 50),
+            "titulo":       (0, 0, 0),
+            "artista":      (40, 40, 40),
+            "album":        (70, 70, 70),
+            "letra_activa": (0, 0, 0),
+            "letra_previa": mezclar_color((fr, fg, fb), (40, 40, 40), 0.6),
+            "letra_siguiente": mezclar_color((fr, fg, fb), (60, 60, 60), 0.5),
+            "info":         mezclar_color((fr, fg, fb), (50, 50, 50), 0.5),
+            "separador":    mezclar_color((fr, fg, fb), (0, 0, 0), 0.3),
+            "barra_bg":     mezclar_color((fr, fg, fb), (0, 0, 0), 0.25),
+            "barra_fg":     (0, 0, 0),
+            "tiempo":       (50, 50, 50),
+            "msg":          (80, 80, 80),
         }
     else:
         return {
-            "actual":    (255, 255, 255),
-            "cerca_1":   (200, 200, 200),
-            "cerca_2":   (150, 150, 150),
-            "lejos":     mezclar_color((fr, fg, fb), (180, 180, 180), 0.35),
-            "muy_lejos": mezclar_color((fr, fg, fb), (120, 120, 120), 0.4),
-            "info":      mezclar_color((fr, fg, fb), (200, 200, 200), 0.4),
-            "separador": mezclar_color((fr, fg, fb), (255, 255, 255), 0.15),
-            "barra_bg":  mezclar_color((fr, fg, fb), (255, 255, 255), 0.2),
-            "barra_fg":  (255, 255, 255),
-            "tiempo":    mezclar_color((fr, fg, fb), (220, 220, 220), 0.4),
+            "titulo":       (255, 255, 255),
+            "artista":      (200, 200, 200),
+            "album":        (150, 150, 150),
+            "letra_activa": (255, 255, 255),
+            "letra_previa": mezclar_color((fr, fg, fb), (120, 120, 120), 0.5),
+            "letra_siguiente": mezclar_color((fr, fg, fb), (200, 200, 200), 0.45),
+            "info":         mezclar_color((fr, fg, fb), (200, 200, 200), 0.4),
+            "separador":    mezclar_color((fr, fg, fb), (255, 255, 255), 0.15),
+            "barra_bg":     mezclar_color((fr, fg, fb), (255, 255, 255), 0.2),
+            "barra_fg":     (255, 255, 255),
+            "tiempo":       mezclar_color((fr, fg, fb), (220, 220, 220), 0.4),
+            "msg":          mezclar_color((fr, fg, fb), (180, 180, 180), 0.5),
         }
 
 
@@ -154,6 +148,7 @@ class EstadoReproductor:
         self.timestamp_volumen = 0
         self.letras_sync = []
         self.letras_estado = "idle"
+        self.letras_mensaje = ""
         self.hubo_cambio_cancion = False
 
     def obtener_posicion_actual(self):
@@ -184,7 +179,7 @@ class EstadoReproductor:
 
     def obtener_letras(self):
         with self.lock:
-            return list(self.letras_sync), self.letras_estado
+            return list(self.letras_sync), self.letras_estado, self.letras_mensaje
 
 
 # ==========================================
@@ -209,8 +204,8 @@ def procesar_item(estado, xml_str):
 
         tipo = hex_a_ascii(match_type.group(1))
         code = hex_a_ascii(match_code.group(1))
-
         data = ""
+
         if match_data:
             b64 = match_data.group(1).strip()
             if b64:
@@ -246,27 +241,19 @@ def procesar_item(estado, xml_str):
                         except ValueError:
                             pass
 
-                elif code == "pfls":
+                elif code == "pfls" or code == "pend":
                     if not estado.esta_pausado and estado.posicion_seg is not None and estado.timestamp_posicion is not None:
-                        transcurrido = ahora - estado.timestamp_posicion
-                        estado.posicion_seg += transcurrido
-                        estado.timestamp_posicion = ahora
+                        estado.posicion_seg += (ahora - estado.timestamp_posicion)
                     estado.esta_pausado = True
+                    estado.timestamp_posicion = ahora
 
-                elif code == "prsm":
+                elif code == "prsm" or code == "pbeg":
                     estado.esta_pausado = False
                     estado.timestamp_posicion = ahora
 
-                elif code == "pend":
-                    estado.esta_pausado = True
-
-                elif code == "pbeg":
-                    estado.esta_pausado = False
-
                 elif code == "pvol":
                     try:
-                        partes_vol = data.split(",")
-                        airplay_vol = float(partes_vol[0])
+                        airplay_vol = float(data.split(",")[0])
                         if airplay_vol <= -144.0:
                             estado.volumen_pct = 0.0
                         else:
@@ -274,7 +261,6 @@ def procesar_item(estado, xml_str):
                         estado.timestamp_volumen = ahora
                     except (ValueError, IndexError):
                         pass
-
     except Exception:
         pass
 
@@ -290,9 +276,8 @@ def hilo_lector_pipe(estado):
                     buffer += linea
                     while "</item>" in buffer:
                         idx = buffer.index("</item>") + len("</item>")
-                        item_xml = buffer[:idx]
+                        procesar_item(estado, buffer[:idx])
                         buffer = buffer[idx:]
-                        procesar_item(estado, item_xml)
         except Exception as e:
             print(f"⚠️  Error en pipe: {e}. Reconectando en 2s...")
             time.sleep(2)
@@ -320,49 +305,65 @@ def buscar_letras(estado, titulo, artista):
     with estado.lock:
         estado.letras_estado = "cargando"
         estado.letras_sync = []
+        estado.letras_mensaje = "Buscando letras..."
+        duracion_actual = estado.duracion_seg
 
     print(f"🔍 Buscando letras: {titulo} - {artista}")
+    time.sleep(0.5)
 
     try:
-        params = urllib.parse.urlencode({
-            "artist_name": artista,
-            "track_name": titulo,
-        })
-        url = f"{LRCLIB_URL}?{params}"
-        req = urllib.request.Request(url, headers={"User-Agent": "RaspberryMusicPlayer/1.0"})
+        # Limpiar metadatos para mejor búsqueda
+        t_limpio = re.sub(r'\s*[\(\[].*?[\)\]]\s*', '', titulo).strip()
+        a_limpio = re.sub(r'\s*[\(\[].*?[\)\]]\s*', '', artista).strip()
 
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            data = json.loads(resp.read().decode())
+        query = urllib.parse.quote(f"{a_limpio} {t_limpio}")
+        url = f"https://lrclib.net/api/search?q={query}"
+        req = urllib.request.Request(url, headers={"User-Agent": "RaspberryMusicPlayer/2.0"})
 
-        synced = data.get("syncedLyrics", "")
-        plain = data.get("plainLyrics", "")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            resultados = json.loads(resp.read().decode())
 
-        if synced:
-            parsed = parsear_lrc(synced)
-            if parsed:
-                with estado.lock:
-                    estado.letras_sync = parsed
-                    estado.letras_estado = "encontradas"
-                print(f"✅ Letras sincronizadas ({len(parsed)} líneas)")
-                return
+        if resultados and isinstance(resultados, list) and len(resultados) > 0:
+            mejor = resultados[0]
 
-        if plain:
-            lineas = [l.strip() for l in plain.split("\n") if l.strip()]
-            if lineas:
-                with estado.lock:
-                    estado.letras_sync = [(0, l) for l in lineas]
-                    estado.letras_estado = "solo_texto"
-                print(f"📝 Letras sin sync ({len(lineas)} líneas)")
-                return
+            if mejor.get("syncedLyrics"):
+                parsed = parsear_lrc(mejor["syncedLyrics"])
+                if parsed:
+                    with estado.lock:
+                        estado.letras_sync = parsed
+                        estado.letras_estado = "encontradas"
+                        estado.letras_mensaje = ""
+                    print(f"✅ Letras sincronizadas ({len(parsed)} líneas)")
+                    return
 
-        with estado.lock:
-            estado.letras_estado = "no_encontradas"
-        print("❌ Letras no encontradas")
+            if mejor.get("plainLyrics"):
+                lineas_texto = [l.strip() for l in mejor["plainLyrics"].split("\n") if l.strip()]
+                if lineas_texto:
+                    dur = duracion_actual if duracion_actual and duracion_actual > 0 else 180.0
+                    tiempo_por_linea = dur / (len(lineas_texto) + 1)
+                    lineas = [(i * tiempo_por_linea, txt) for i, txt in enumerate(lineas_texto)]
+                    with estado.lock:
+                        estado.letras_sync = lineas
+                        estado.letras_estado = "solo_texto"
+                        estado.letras_mensaje = "Auto-Scroll"
+                    print(f"📝 Letras sin sync ({len(lineas)} líneas)")
+                    return
+
+            with estado.lock:
+                estado.letras_estado = "no_encontradas"
+                estado.letras_mensaje = "Instrumental / Sin letra"
+        else:
+            with estado.lock:
+                estado.letras_estado = "no_encontradas"
+                estado.letras_mensaje = "Letra no encontrada"
+
+        print(f"❌ {estado.letras_mensaje}")
 
     except Exception as e:
         print(f"❌ Error buscando letras: {e}")
         with estado.lock:
             estado.letras_estado = "no_encontradas"
+            estado.letras_mensaje = "Sin conexión a internet"
 
 
 def iniciar_busqueda_letras(estado, titulo, artista):
@@ -371,12 +372,12 @@ def iniciar_busqueda_letras(estado, titulo, artista):
 
 
 # ==========================================
-# 6. BOTONES + TOUCH
+# 6. BOTONES
 # ==========================================
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
-BTN_K1_PREV = 18
+BTN_K1_PREV = 25  # GPIO25 (pin 22) — GPIO18 queda libre para el DAC (BCK/I2S)
 BTN_K2_PAUSA = 23
 BTN_K3_NEXT = 24
 
@@ -384,7 +385,6 @@ GPIO.setup(BTN_K1_PREV, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(BTN_K2_PAUSA, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(BTN_K3_NEXT, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-# Variable global para el modo
 modo_letras = False
 
 
@@ -413,9 +413,8 @@ GPIO.add_event_detect(BTN_K1_PREV, GPIO.FALLING, callback=control_musica, bounce
 GPIO.add_event_detect(BTN_K2_PAUSA, GPIO.FALLING, callback=control_musica, bouncetime=300)
 GPIO.add_event_detect(BTN_K3_NEXT, GPIO.FALLING, callback=control_musica, bouncetime=300)
 
-
 # ==========================================
-# 7. PANTALLA SPI
+# 7. PANTALLA SPI + TOUCH
 # ==========================================
 cs_pin = digitalio.DigitalInOut(board.CE0)
 dc_pin = digitalio.DigitalInOut(board.D22)
@@ -423,27 +422,17 @@ reset_pin = digitalio.DigitalInOut(board.D27)
 spi = board.SPI()
 
 disp = ili9341.ILI9341(
-    spi,
-    rotation=0,
-    cs=cs_pin,
-    dc=dc_pin,
-    rst=reset_pin,
-    baudrate=40000000,
+    spi, rotation=0, cs=cs_pin, dc=dc_pin, rst=reset_pin, baudrate=40000000,
 )
 
-# Touch XPT2046 (usa el mismo bus SPI, se lee DESPUÉS de actualizar pantalla)
+# Touch XPT2046 (se lee DESPUÉS de actualizar pantalla para evitar ruido SPI)
 cs_touch = digitalio.DigitalInOut(board.CE1)
 irq_touch = digitalio.DigitalInOut(board.D17)
 touch = xpt2046_circuitpython.Touch(
-    spi,
-    cs=cs_touch,
-    interrupt=irq_touch,
-    force_baudrate=4000000,
+    spi, cs=cs_touch, interrupt=irq_touch, force_baudrate=4000000,
 )
-print("👆 Touch configurado (lápiz táctil, CE1/D17)")
+print("👆 Touch configurado (lápiz táctil)")
 
-# Touch state
-TOUCH_DEBOUNCE = 0.8
 touch_previo = False
 ultimo_touch = 0.0
 
@@ -457,6 +446,44 @@ def formato_tiempo(segundos):
         return "--:--"
     s = int(segundos)
     return f"{s // 60}:{s % 60:02d}"
+
+
+def medir_texto(draw, texto, fuente):
+    bbox = draw.textbbox((0, 0), texto, font=fuente)
+    return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+
+def medir_texto_multilinea(draw, texto, fuente):
+    """Mide el ancho y alto de texto multilínea."""
+    lineas = texto.split("\n")
+    max_w = 0
+    total_h = 0
+    for linea in lineas:
+        tw, th = medir_texto(draw, linea, fuente)
+        if tw > max_w:
+            max_w = tw
+        total_h += th + 4  # 4px de interlineado
+    return max_w, total_h
+
+
+def envolver_texto(draw, texto, fuente, max_ancho):
+    """Corta frases largas en varias líneas para que quepan en la pantalla."""
+    lineas = []
+    for parrafo in texto.split("\n"):
+        palabras = parrafo.split()
+        linea_actual = ""
+        for palabra in palabras:
+            prueba = linea_actual + palabra + " "
+            tw, _ = medir_texto(draw, prueba, fuente)
+            if tw <= max_ancho:
+                linea_actual = prueba
+            else:
+                if linea_actual:
+                    lineas.append(linea_actual.strip())
+                linea_actual = palabra + " "
+        if linea_actual:
+            lineas.append(linea_actual.strip())
+    return "\n".join(lineas)
 
 
 def calcular_offset_scroll(texto_ancho, area_ancho, tiempo_transcurrido):
@@ -478,24 +505,6 @@ def calcular_offset_scroll(texto_ancho, area_ancho, tiempo_transcurrido):
         return int(exceso * (1.0 - (t - pausa - tiempo_scroll - pausa) / tiempo_scroll))
 
 
-def medir_texto(draw, texto, fuente):
-    bbox = draw.textbbox((0, 0), texto, font=fuente)
-    return bbox[2] - bbox[0], bbox[3] - bbox[1]
-
-
-def truncar_texto(draw, texto, fuente, ancho_max):
-    """Trunca texto con '...' si excede el ancho máximo."""
-    tw, _ = medir_texto(draw, texto, fuente)
-    if tw <= ancho_max:
-        return texto
-    while len(texto) > 1:
-        texto = texto[:-1]
-        tw, _ = medir_texto(draw, texto.rstrip() + "…", fuente)
-        if tw <= ancho_max:
-            return texto.rstrip() + "…"
-    return "…"
-
-
 def dibujar_texto_scroll(lienzo, texto, fuente, color, y, tiempo_scroll, color_fondo_scroll=COLOR_FONDO):
     draw = ImageDraw.Draw(lienzo)
     area_ancho = ANCHO_PANTALLA - MARGEN * 2
@@ -512,15 +521,13 @@ def dibujar_texto_scroll(lienzo, texto, fuente, color, y, tiempo_scroll, color_f
         lienzo.paste(ventana, (MARGEN, y))
 
 
-def dibujar_barra_progreso(lienzo, posicion_seg, duracion_seg, y_barra,
-                           color_barra_bg=COLOR_FONDO_BARRA, color_barra_fg=COLOR_PROGRESO,
-                           color_txt=COLOR_TIEMPO):
+def dibujar_barra_progreso(lienzo, posicion_seg, duracion_seg, y_barra, colores):
     draw = ImageDraw.Draw(lienzo)
     barra_h = 4
     barra_x0 = MARGEN
     barra_x1 = ANCHO_PANTALLA - MARGEN
 
-    draw.rectangle([barra_x0, y_barra, barra_x1, y_barra + barra_h], fill=color_barra_bg)
+    draw.rectangle([barra_x0, y_barra, barra_x1, y_barra + barra_h], fill=colores["barra_bg"])
 
     if duracion_seg and duracion_seg > 0 and posicion_seg is not None:
         progreso = max(0.0, min(1.0, posicion_seg / duracion_seg))
@@ -529,13 +536,13 @@ def dibujar_barra_progreso(lienzo, posicion_seg, duracion_seg, y_barra,
 
     largo = int((barra_x1 - barra_x0) * progreso)
     if largo > 0:
-        draw.rectangle([barra_x0, y_barra, barra_x0 + largo, y_barra + barra_h], fill=color_barra_fg)
+        draw.rectangle([barra_x0, y_barra, barra_x0 + largo, y_barra + barra_h], fill=colores["barra_fg"])
 
     tiempo_y = y_barra + barra_h + 3
-    draw.text((barra_x0, tiempo_y), formato_tiempo(posicion_seg), fill=color_txt, font=fuente_tiempo)
+    draw.text((barra_x0, tiempo_y), formato_tiempo(posicion_seg), fill=colores["tiempo"], font=fuente_tiempo)
     txt_total = formato_tiempo(duracion_seg)
     ancho_tt, _ = medir_texto(draw, txt_total, fuente_tiempo)
-    draw.text((barra_x1 - ancho_tt, tiempo_y), txt_total, fill=color_txt, font=fuente_tiempo)
+    draw.text((barra_x1 - ancho_tt, tiempo_y), txt_total, fill=colores["tiempo"], font=fuente_tiempo)
 
 
 # --- MODO CARÁTULA ---
@@ -544,149 +551,120 @@ def dibujar_info_cover(lienzo, titulo, artista, album, posicion_seg, duracion_se
                        tiempo_scroll, colores, color_fondo_c):
     titulo_y = INFO_Y_START + 2
     dibujar_texto_scroll(lienzo, titulo if titulo else "Sin título",
-                         fuente_titulo, colores["actual"], titulo_y, tiempo_scroll, color_fondo_c)
+                         fuente_titulo, colores["titulo"], titulo_y, tiempo_scroll, color_fondo_c)
 
     artista_y = titulo_y + 18
     dibujar_texto_scroll(lienzo, artista if artista else "Artista desconocido",
-                         fuente_artista, colores["cerca_1"], artista_y, tiempo_scroll, color_fondo_c)
+                         fuente_artista, colores["artista"], artista_y, tiempo_scroll, color_fondo_c)
 
     album_y = artista_y + 16
     if album:
-        dibujar_texto_scroll(lienzo, album, fuente_album, colores["cerca_2"], album_y, tiempo_scroll, color_fondo_c)
+        dibujar_texto_scroll(lienzo, album, fuente_album, colores["album"], album_y, tiempo_scroll, color_fondo_c)
 
     barra_y = album_y + 15
-    dibujar_barra_progreso(lienzo, posicion_seg, duracion_seg, barra_y,
-                           colores["barra_bg"], colores["barra_fg"], colores["tiempo"])
+    dibujar_barra_progreso(lienzo, posicion_seg, duracion_seg, barra_y, colores)
 
 
-# --- MODO LETRAS ---
-
-def encontrar_linea_actual(letras_sync, posicion_seg):
-    idx = 0
-    for i, (ts, _) in enumerate(letras_sync):
-        if posicion_seg >= ts:
-            idx = i
-        else:
-            break
-    return idx
-
+# --- MODO LETRAS (con word wrap) ---
 
 def dibujar_vista_letras(lienzo, titulo, artista, letras_sync, letras_estado,
-                         posicion_seg, duracion_seg, color_fondo_l, colores, ahora):
+                         letras_mensaje, posicion_seg, duracion_seg, colores):
+    """Dibuja letras con word wrap. Línea actual centrada, las demás fluyen arriba/abajo."""
     draw = ImageDraw.Draw(lienzo)
-    area_ancho = ANCHO_PANTALLA - MARGEN * 2
+    max_ancho_texto = ANCHO_PANTALLA - 20  # 10px margen cada lado
 
     # --- Header compacto ---
-    header_texto = titulo if titulo else "Sin título"
+    header = titulo if titulo else "Sin título"
     if artista:
-        header_texto += f"  •  {artista}"
-    header_texto = truncar_texto(draw, header_texto, fuente_letra_info, area_ancho)
-    hw, _ = medir_texto(draw, header_texto, fuente_letra_info)
-    draw.text(((ANCHO_PANTALLA - hw) // 2, 6), header_texto,
+        header += f"  •  {artista}"
+    # Truncar header si es muy largo
+    while len(header) > 3:
+        hw, _ = medir_texto(draw, header, fuente_letra_info)
+        if hw <= ANCHO_PANTALLA - 20:
+            break
+        header = header[:-4] + "…"
+    hw, _ = medir_texto(draw, header, fuente_letra_info)
+    draw.text(((ANCHO_PANTALLA - hw) // 2, 6), header,
               fill=colores["info"], font=fuente_letra_info)
 
-    # Separador
     draw.line([(MARGEN, 22), (ANCHO_PANTALLA - MARGEN, 22)],
               fill=colores["separador"], width=1)
 
-    # --- Zona de letras ---
-    letras_y_inicio = 28
-    letras_y_fin = 282
-    letras_altura = letras_y_fin - letras_y_inicio
+    # --- Zona de letras (y=28 a y=282) ---
+    zona_y_inicio = 28
+    zona_y_fin = 282
 
-    if letras_estado == "cargando":
-        msg = "Buscando letras..."
-        mw, _ = medir_texto(draw, msg, fuente_artista)
-        draw.text(((ANCHO_PANTALLA - mw) // 2, letras_y_inicio + letras_altura // 2 - 8),
-                  msg, fill=colores["cerca_1"], font=fuente_artista)
+    if not letras_sync:
+        # Sin letras: mostrar mensaje
+        msg = letras_mensaje if letras_mensaje else "Esperando canción..."
+        msg_wrap = envolver_texto(draw, msg, fuente_artista, max_ancho_texto)
+        mw, mh = medir_texto_multilinea(draw, msg_wrap, fuente_artista)
+        y_msg = zona_y_inicio + (zona_y_fin - zona_y_inicio) // 2 - mh // 2
+        draw.multiline_text(
+            ((ANCHO_PANTALLA - mw) // 2, y_msg), msg_wrap,
+            fill=colores["msg"], font=fuente_artista, align="center",
+        )
+    else:
+        # Encontrar verso actual
+        idx_actual = 0
+        for i, (t, _) in enumerate(letras_sync):
+            if (posicion_seg or 0) >= t:
+                idx_actual = i
+            else:
+                break
 
-    elif letras_estado == "no_encontradas":
-        msg = "Letras no disponibles"
-        mw, _ = medir_texto(draw, msg, fuente_artista)
-        draw.text(((ANCHO_PANTALLA - mw) // 2, letras_y_inicio + letras_altura // 2 - 8),
-                  msg, fill=colores["lejos"], font=fuente_artista)
+        y_centro = zona_y_inicio + (zona_y_fin - zona_y_inicio) // 2
+        espaciado = 12
 
-    elif letras_estado == "solo_texto" and letras_sync:
-        total = len(letras_sync)
-        if duracion_seg and duracion_seg > 0 and posicion_seg is not None:
-            idx_estimado = int((posicion_seg / duracion_seg) * total)
+        # 1. LÍNEA ACTUAL (centrada, blanca/bold)
+        if idx_actual < len(letras_sync):
+            txt_wrap = envolver_texto(draw, letras_sync[idx_actual][1],
+                                     fuente_letra_activa, max_ancho_texto)
+            tw, th = medir_texto_multilinea(draw, txt_wrap, fuente_letra_activa)
+            y_dibujo = y_centro - th // 2
+            draw.multiline_text(
+                ((ANCHO_PANTALLA - tw) // 2, y_dibujo), txt_wrap,
+                fill=colores["letra_activa"], font=fuente_letra_activa, align="center",
+            )
+            y_arriba = y_dibujo - espaciado
+            y_abajo = y_dibujo + th + espaciado
         else:
-            idx_estimado = 0
-        idx_estimado = max(0, min(total - 1, idx_estimado))
-        _dibujar_lineas_letras(draw, lienzo, letras_sync, idx_estimado,
-                               letras_y_inicio, letras_altura, color_fondo_l, colores, ahora)
+            y_arriba = y_centro - espaciado
+            y_abajo = y_centro + espaciado
 
-    elif letras_estado == "encontradas" and letras_sync:
-        idx_actual = encontrar_linea_actual(letras_sync, posicion_seg or 0)
-        _dibujar_lineas_letras(draw, lienzo, letras_sync, idx_actual,
-                               letras_y_inicio, letras_altura, color_fondo_l, colores, ahora)
+        # 2. LÍNEAS ANTERIORES (fluyen hacia arriba, gris oscuro)
+        for i in range(idx_actual - 1, max(-1, idx_actual - 5), -1):
+            txt_wrap = envolver_texto(draw, letras_sync[i][1],
+                                     fuente_letra_inactiva, max_ancho_texto)
+            tw, th = medir_texto_multilinea(draw, txt_wrap, fuente_letra_inactiva)
+            y_dibujo = y_arriba - th
+            if y_dibujo < zona_y_inicio - 5:
+                break
+            draw.multiline_text(
+                ((ANCHO_PANTALLA - tw) // 2, y_dibujo), txt_wrap,
+                fill=colores["letra_previa"], font=fuente_letra_inactiva, align="center",
+            )
+            y_arriba = y_dibujo - espaciado
+
+        # 3. LÍNEAS SIGUIENTES (fluyen hacia abajo, gris claro)
+        for i in range(idx_actual + 1, min(len(letras_sync), idx_actual + 5)):
+            txt_wrap = envolver_texto(draw, letras_sync[i][1],
+                                     fuente_letra_inactiva, max_ancho_texto)
+            tw, th = medir_texto_multilinea(draw, txt_wrap, fuente_letra_inactiva)
+            if y_abajo + th > zona_y_fin + 5:
+                break
+            draw.multiline_text(
+                ((ANCHO_PANTALLA - tw) // 2, y_abajo), txt_wrap,
+                fill=colores["letra_siguiente"], font=fuente_letra_inactiva, align="center",
+            )
+            y_abajo += th + espaciado
 
     # Separador inferior
-    draw.line([(MARGEN, letras_y_fin), (ANCHO_PANTALLA - MARGEN, letras_y_fin)],
+    draw.line([(MARGEN, zona_y_fin), (ANCHO_PANTALLA - MARGEN, zona_y_fin)],
               fill=colores["separador"], width=1)
 
-    # --- Barra de progreso ---
-    dibujar_barra_progreso(lienzo, posicion_seg, duracion_seg, letras_y_fin + 6,
-                           colores["barra_bg"], colores["barra_fg"], colores["tiempo"])
-
-
-def elegir_fuente(draw, texto, fuentes, ancho_max):
-    """Elige la fuente más grande que haga caber el texto en ancho_max."""
-    for fuente in fuentes:
-        tw, _ = medir_texto(draw, texto, fuente)
-        if tw <= ancho_max:
-            return fuente, tw
-    # Ninguna cabe: usar la más pequeña
-    tw, _ = medir_texto(draw, texto, fuentes[-1])
-    return fuentes[-1], tw
-
-
-def _dibujar_lineas_letras(draw, lienzo, letras_sync, idx_actual,
-                           y_inicio, altura_total, color_fondo_l, colores, ahora):
-    """
-    Dibuja líneas de letras con gradiente.
-    El tamaño de fuente se ajusta automáticamente para que el texto quepa.
-    """
-    total = len(letras_sync)
-    centro_y = y_inicio + altura_total // 2
-    mitad = LETRAS_VISIBLES // 2
-    area_ancho = ANCHO_PANTALLA - MARGEN * 2
-
-    color_map = {
-        0: colores["actual"],
-        1: colores["cerca_1"],
-        2: colores["cerca_2"],
-    }
-
-    for offset in range(-mitad, mitad + 1):
-        idx = idx_actual + offset
-        if idx < 0 or idx >= total:
-            continue
-
-        _, texto = letras_sync[idx]
-        distancia = abs(offset)
-
-        if distancia <= 2:
-            color = color_map.get(distancia, colores["lejos"])
-        elif distancia <= 4:
-            color = colores["lejos"]
-        else:
-            color = colores["muy_lejos"]
-
-        y = centro_y + offset * LINEA_ALTO - LINEA_ALTO // 2
-
-        if y < y_inicio - 2 or y + LINEA_ALTO > y_inicio + altura_total + 2:
-            continue
-
-        # Elegir fuente que haga caber el texto
-        if offset == 0:
-            fuente, tw = elegir_fuente(draw, texto, FUENTES_LETRA_BOLD, area_ancho)
-        else:
-            fuente, tw = elegir_fuente(draw, texto, FUENTES_LETRA_NORMAL, area_ancho)
-
-        # Centrar horizontalmente
-        tx = (ANCHO_PANTALLA - tw) // 2
-        draw.text((tx, y), texto, fill=color, font=fuente)
+    # Barra de progreso
+    dibujar_barra_progreso(lienzo, posicion_seg, duracion_seg, zona_y_fin + 6, colores)
 
 
 # --- VOLUMEN OVERLAY ---
@@ -716,11 +694,10 @@ def dibujar_volumen(lienzo, volumen_pct, tiempo_desde_cambio):
     barra_y = 22
     barra_h = 6
     barra_x1 = ov_ancho - barra_m
-
     draw_ov.rectangle([barra_m, barra_y, barra_x1, barra_y + barra_h], fill=(80, 80, 80))
     fill_w = int((barra_x1 - barra_m) * volumen_pct / 100.0)
     if fill_w > 0:
-        draw_ov.rectangle([barra_m, barra_y, barra_m + fill_w, barra_y + barra_h], fill=COLOR_PROGRESO)
+        draw_ov.rectangle([barra_m, barra_y, barra_m + fill_w, barra_y + barra_h], fill=(255, 255, 255))
 
     region = lienzo.crop((ov_x, ov_y, ov_x + ov_ancho, ov_y + ov_alto))
     mezclado = Image.blend(region, overlay, opacidad * 0.85)
@@ -747,15 +724,14 @@ tiempo_inicio_scroll = time.time()
 titulo_mostrado = ""
 artista_mostrado = ""
 album_mostrado = ""
-
 ultimo_track_letras = ""
 
-# Color dominante de la carátula para fondo de letras
-color_fondo_letras = (20, 20, 20)
-colores_letras = generar_colores_letras(color_fondo_letras)
+# Color dominante
+color_fondo_dom = (20, 20, 20)
+colores = generar_colores(color_fondo_dom)
 
 print("🚀 Sistema Listo. Esperando música desde AirPlay...")
-print("👆 Toca la pantalla para alternar entre carátula y letras")
+print("👆 Toca la pantalla con el lápiz para alternar entre carátula y letras")
 
 try:
     while True:
@@ -782,9 +758,9 @@ try:
                         last_modified = tiempo_modificacion
                         caratula_cambio = True
 
-                        # Extraer color dominante
-                        color_fondo_letras = extraer_color_dominante(nueva_cover)
-                        colores_letras = generar_colores_letras(color_fondo_letras)
+                        # Color dominante
+                        color_fondo_dom = extraer_color_dominante(nueva_cover)
+                        colores = generar_colores(color_fondo_dom)
 
                         if imagen_caratula is not None:
                             imagen_caratula_vieja = imagen_caratula.copy()
@@ -851,23 +827,19 @@ try:
 
         # --- Construir frame ---
         if imagen_caratula is not None or modo_letras:
+            lienzo = Image.new("RGB", (ANCHO_PANTALLA, ALTO_PANTALLA), color_fondo_dom)
 
             if modo_letras:
                 # === MODO LETRAS ===
-                lienzo = Image.new("RGB", (ANCHO_PANTALLA, ALTO_PANTALLA), color_fondo_letras)
-
-                letras_sync, letras_estado = estado.obtener_letras()
+                letras_sync, letras_estado, letras_mensaje = estado.obtener_letras()
                 dibujar_vista_letras(
                     lienzo,
                     titulo_mostrado, artista_mostrado,
-                    letras_sync, letras_estado,
-                    posicion_seg, duracion_seg,
-                    color_fondo_letras, colores_letras, ahora,
+                    letras_sync, letras_estado, letras_mensaje,
+                    posicion_seg, duracion_seg, colores,
                 )
             else:
-                # === MODO CARÁTULA: fondo con color dominante ===
-                lienzo = Image.new("RGB", (ANCHO_PANTALLA, ALTO_PANTALLA), color_fondo_letras)
-
+                # === MODO CARÁTULA ===
                 if hay_slide:
                     t_slide = (ahora - slide_inicio) / SLIDE_DURACION
                     t_ease = 1.0 - (1.0 - t_slide) ** 2
@@ -891,7 +863,7 @@ try:
                     lienzo,
                     titulo_mostrado, artista_mostrado, album_mostrado,
                     posicion_seg, duracion_seg,
-                    tiempo_scroll, colores_letras, color_fondo_letras,
+                    tiempo_scroll, colores, color_fondo_dom,
                 )
 
             # Volumen overlay
@@ -900,26 +872,28 @@ try:
 
             disp.image(lienzo.convert("RGB"))
 
-            # --- Touch: leer DESPUÉS de actualizar pantalla (SPI libre) ---
-            # Leer coordenadas reales valida que es un toque del lápiz,
-            # no ruido del SPI del display.
+            # --- Touch: leer DESPUÉS de pantalla (SPI libre) ---
             try:
                 tocado = touch.is_pressed()
                 if tocado and not touch_previo:
-                    # Flanco: no tocado → tocado
-                    # Intentar leer coordenadas para confirmar toque real
                     try:
                         x_t, y_t = touch.get_coordinates()
-                        # Si get_coordinates funciona sin error, es toque real
                         if ahora - ultimo_touch > TOUCH_DEBOUNCE:
                             modo_letras = not modo_letras
                             ultimo_touch = ahora
-                            print(f"👆 Modo: {'Letras' if modo_letras else 'Carátula'} (x={x_t}, y={y_t})")
+                            print(f"👆 Modo: {'Letras' if modo_letras else 'Carátula'}")
                     except Exception:
-                        pass  # Coordenadas inválidas = no es toque real
+                        pass
                 touch_previo = tocado
             except Exception:
                 touch_previo = False
+
+        time.sleep(0.25)
+
+except KeyboardInterrupt:
+    print("\nApagando sistema y liberando pines...")
+    GPIO.cleanup()
+
 
         time.sleep(0.25)
 
